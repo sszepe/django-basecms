@@ -1,0 +1,30 @@
+{# Recursive dropdown item — works for any depth #}
+{# Called with: item, lang #}
+{% with has_children=item.visible_children %}
+<li class="{% if has_children %}dropdown-submenu{% endif %}">
+
+  {% if item.cms_page %}
+    <a class="dropdown-item{% if has_children %} dropdown-toggle{% endif %}"
+       href="/{{ lang }}/{{ item.cms_page.slug }}/">
+      {{ item.title }}
+    </a>
+  {% elif item.external_url %}
+    <a class="dropdown-item{% if has_children %} dropdown-toggle{% endif %}"
+       href="{{ item.external_url }}"
+       target="_blank" rel="noopener noreferrer">
+      {{ item.title }}
+    </a>
+  {% else %}
+    <span class="dropdown-item-text">{{ item.title }}</span>
+  {% endif %}
+
+  {% if has_children %}
+    <ul class="dropdown-menu">
+      {% for child in item.visible_children %}
+        {% include "basecms/includes/navbar_dropdown_item.html" with item=child lang=lang %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+</li>
+{% endwith %}

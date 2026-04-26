@@ -1,0 +1,31 @@
+<!doctype html>
+{% load static %}
+{% load cms_react_tags %}
+<html lang="{{ current_language|default:'en' }}">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}{{ page_title|default:"basecms" }}{% endblock %}</title>
+    <meta name="description" content="{{ page_description|default:'' }}" />
+    <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}" />
+
+    {# Language + routing config for the React SPA #}
+    {# FIX: |safe is required — without it Django HTML-escapes the JSON,             #}
+    {#      turning " into &quot; which causes "Unexpected token '&'" in the browser. #}
+    <script>
+      window.__SITE_CONFIG__ = {
+        languages: {{ available_language_codes_json|safe }},
+        defaultLanguage: "{{ default_language }}"
+      };
+    </script>
+
+    {# Vite CSS (no-op in dev — injected by HMR) #}
+    {% vite_asset 'site' 'css' %}
+  </head>
+  <body>
+    <div id="site-root"></div>
+
+    {# Vite JS entry #}
+    {% vite_asset 'site' 'js' %}
+  </body>
+</html>

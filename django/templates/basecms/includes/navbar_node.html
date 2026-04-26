@@ -1,0 +1,120 @@
+{% if node.level == 0 %}
+  <li class="nav-item {% if node.visible_children %}dropdown has-children{% endif %}"
+      role="none"
+      data-nav-item-id="{{ node.id }}"
+      data-nav-public="{{ node.is_public|yesno:'true,false' }}">
+    {% if node.cms_page %}
+      <a class="nav-link {% if node.visible_children %}dropdown-toggle{% endif %}"
+         href="/{{ current_language }}/{{ node.cms_page.slug }}"
+         role="menuitem"
+         {% if node.visible_children %}
+           data-bs-toggle="dropdown"
+           aria-expanded="false"
+           aria-haspopup="true"
+           id="navDropdown{{ node.id }}"
+         {% endif %}>
+        {{ node.title }}
+      </a>
+    {% elif node.external_url %}
+      <a class="nav-link {% if node.visible_children %}dropdown-toggle{% endif %}"
+         href="{{ node.external_url }}"
+         role="menuitem"
+         {% if node.external_url|slice:":4" == "http" %}
+           target="_blank"
+           rel="noopener noreferrer"
+           aria-label="{{ node.title }} (opens in new tab)"
+         {% endif %}
+         {% if node.visible_children %}
+           data-bs-toggle="dropdown"
+           aria-expanded="false"
+           aria-haspopup="true"
+           id="navDropdown{{ node.id }}"
+         {% endif %}>
+        {{ node.title }}
+      </a>
+    {% else %}
+      <a class="nav-link {% if node.visible_children %}dropdown-toggle{% endif %}"
+         href="#"
+         role="menuitem"
+         {% if node.visible_children %}
+           data-bs-toggle="dropdown"
+           aria-expanded="false"
+           aria-haspopup="true"
+           id="navDropdown{{ node.id }}"
+         {% endif %}>
+        {{ node.title }}
+      </a>
+    {% endif %}
+
+    {% if node.visible_children %}
+      <ul class="dropdown-menu" aria-labelledby="navDropdown{{ node.id }}" role="menu">
+        {% for child in node.visible_children %}
+          {% include "includes/navbar_node.html" with node=child current_language=current_language only %}
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </li>
+{% else %}
+  <li class="{% if node.visible_children %}dropdown-submenu has-children{% endif %}"
+      role="none"
+      data-nav-item-id="{{ node.id }}"
+      data-nav-level="{{ node.level }}"
+      data-nav-public="{{ node.is_public|yesno:'true,false' }}">
+    {% if node.cms_page %}
+      <a class="dropdown-item {% if node.visible_children %}submenu-toggle{% endif %}"
+         href="/{{ current_language }}/{{ node.cms_page.slug }}"
+         role="menuitem"
+         {% if node.visible_children %}
+           aria-haspopup="true"
+           aria-expanded="false"
+           id="submenu{{ node.id }}"
+         {% endif %}>
+        {{ node.title }}
+        {% if node.visible_children %}
+          <span class="submenu-arrow" aria-hidden="true">›</span>
+        {% endif %}
+      </a>
+    {% elif node.external_url %}
+      <a class="dropdown-item {% if node.visible_children %}submenu-toggle{% endif %}"
+         href="{{ node.external_url }}"
+         role="menuitem"
+         {% if node.external_url|slice:":4" == "http" %}
+           target="_blank"
+           rel="noopener noreferrer"
+           aria-label="{{ node.title }} (opens in new tab)"
+         {% endif %}
+         {% if node.visible_children %}
+           aria-haspopup="true"
+           aria-expanded="false"
+           id="submenu{{ node.id }}"
+         {% endif %}>
+        {{ node.title }}
+        {% if node.visible_children %}
+          <span class="submenu-arrow" aria-hidden="true">›</span>
+        {% endif %}
+      </a>
+    {% else %}
+      <a class="dropdown-item {% if node.visible_children %}submenu-toggle{% endif %}"
+         href="#"
+         role="menuitem"
+         {% if node.visible_children %}
+           aria-haspopup="true"
+           aria-expanded="false"
+           id="submenu{{ node.id }}"
+         {% endif %}>
+        {{ node.title }}
+        {% if node.visible_children %}
+          <span class="submenu-arrow" aria-hidden="true">›</span>
+        {% endif %}
+      </a>
+    {% endif %}
+
+    {% if node.visible_children %}
+      <ul class="dropdown-menu" aria-labelledby="submenu{{ node.id }}" role="menu">
+        {% for child in node.visible_children %}
+          {% include "includes/navbar_node.html" with node=child current_language=current_language only %}
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </li>
+{% endif %}

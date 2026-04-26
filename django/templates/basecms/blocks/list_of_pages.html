@@ -1,0 +1,1 @@
+<div class="block-card"><h3 class="h6">Pages</h3><ul class="mb-0">{% for p in pages %}<li><a href="/{{ p.language }}/{{ p.slug }}/">{{ p.title }}</a></li>{% empty %}<li>No pages</li>{% endfor %}</ul></div>

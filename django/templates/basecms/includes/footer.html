@@ -1,0 +1,12 @@
+<footer class="site-footer">
+  <div class="container">
+    <div>{{ basecms_theme.footer_text }}</div>
+    {% if basecms_theme.footer_links %}
+      <nav class="footer-links">
+        {% for label, href in basecms_theme.footer_links %}
+          <a href="{{ href }}">{{ label }}</a>
+        {% endfor %}
+      </nav>
+    {% endif %}
+  </div>
+</footer>

@@ -1,0 +1,158 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# docker-compose.yml — basecms full stack
+#
+# Services:
+#   db        — PostgreSQL 16
+#   django    — gunicorn (production settings, port NOT published externally)
+#   qcluster  — django-q2 background worker
+#   nginx     — unified reverse proxy:
+#                 · serves the built React SPA (baked into image at build time)
+#                 · serves Django /static/ and /media/ from Docker volumes
+#                 · proxies /api/, /accounts/, /admin/, / → django:8000
+#
+# No Redis. Cache uses Django's database cache (cachetable).
+#
+# Quick start:
+#   cp .env.example .env
+#   # Edit .env — set DJANGO_SECRET_KEY and POSTGRES_PASSWORD at minimum
+#   docker compose up --build
+#
+# URLs after startup:
+#   http://localhost/          → Django public site
+#   http://localhost/cockpit/  → React CMS cockpit
+#   http://localhost/api/docs/ → Swagger UI
+#   http://localhost/admin/    → Django admin
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-basecms}
+      POSTGRES_USER:     ${POSTGRES_USER:-basecms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT:-6431}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-basecms} -d ${POSTGRES_DB:-basecms}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── Django / gunicorn ───────────────────────────────────────────────────────
+  django:
+    build:
+      context: ./django
+      dockerfile: Dockerfile
+    environment:
+      DJANGO_SETTINGS_MODULE:  djangobaseproject.settings.production
+      DJANGO_SECRET_KEY:       ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set in .env}
+      ALLOWED_HOSTS:           ${ALLOWED_HOSTS:-localhost,127.0.0.1,django,nginx}
+      CSRF_TRUSTED_ORIGINS:    ${CSRF_TRUSTED_ORIGINS:-http://localhost}
+      POSTGRES_DB:             ${POSTGRES_DB:-basecms}
+      POSTGRES_USER:           ${POSTGRES_USER:-basecms}
+      POSTGRES_PASSWORD:       ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_HOST:           db
+      POSTGRES_PORT:           5432
+      CMS_AVAILABLE_LANGUAGES: ${CMS_AVAILABLE_LANGUAGES:-en:English,de:German}
+      CMS_SERVE_PUBLIC_PAGES:  ${CMS_SERVE_PUBLIC_PAGES:-frontend}
+      Q_WORKERS:               ${Q_WORKERS:-2}
+      THROTTLE_ANON:           ${THROTTLE_ANON:-60/minute}
+      THROTTLE_USER:           ${THROTTLE_USER:-300/minute}
+      CACHE_TIMEOUT:           ${CACHE_TIMEOUT:-300}
+      DJANGO_LOG_LEVEL:        ${DJANGO_LOG_LEVEL:-WARNING}
+      APP_LOG_LEVEL:           ${APP_LOG_LEVEL:-INFO}
+      EMAIL_HOST:              ${EMAIL_HOST:-localhost}
+      EMAIL_PORT:              ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER:         ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD:     ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL:      ${DEFAULT_FROM_EMAIL:-noreply@example.com}
+    volumes:
+      - django_media:/app/media
+      - django_static:/app/static
+    command: >
+      sh -c "
+        python manage.py migrate --noinput &&
+        python manage.py collectstatic --noinput &&
+        mkdir -p /app/static/.vite &&
+        cp /app/manifest-vite.json /app/static/.vite/manifest.json &&
+        python manage.py ensure_cachetable &&
+        python manage.py seed_basecms || true &&
+        gunicorn wsgi:application
+      "
+    expose:
+      - "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/schema/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+    restart: unless-stopped
+
+  # ── django-q2 background worker ─────────────────────────────────────────────
+  qcluster:
+    build:
+      context: ./django
+      dockerfile: Dockerfile
+    environment:
+      DJANGO_SETTINGS_MODULE: djangobaseproject.settings.production
+      DJANGO_SECRET_KEY:      ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set in .env}
+      POSTGRES_DB:            ${POSTGRES_DB:-basecms}
+      POSTGRES_USER:          ${POSTGRES_USER:-basecms}
+      POSTGRES_PASSWORD:      ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_HOST:          db
+      POSTGRES_PORT:          5432
+      Q_WORKERS:              ${Q_WORKERS:-2}
+    volumes:
+      - django_media:/app/media
+    command: python manage.py qcluster
+    depends_on:
+      db:
+        condition: service_healthy
+      django:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── nginx — SPA + static/media + reverse proxy ──────────────────────────────
+  # Build context is the project root so the Dockerfile can reach:
+  #   ./frontend/  — React source (built in stage 1)
+  #   ./nginx/     — nginx.conf
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    volumes:
+      # FIX: was `:ro` — the nginx entrypoint copies the Vite manifest
+      # (.vite/manifest.json) into this volume at container startup so Django's
+      # cms_react_tags template tag can resolve content-hashed filenames.
+      # A read-only mount silently prevents that copy, leaving the manifest
+      # absent and causing "vite: entry 'site' not found in manifest".
+      - django_static:/app/static
+      - django_media:/app/media:ro
+    ports:
+      - "${HTTP_PORT:-8081}:80"
+    depends_on:
+      django:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/health/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  django_media:
+  django_static:

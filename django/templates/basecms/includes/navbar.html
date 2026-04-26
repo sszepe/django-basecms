@@ -1,0 +1,103 @@
+{% load static %}
+<nav class="navbar navbar-expand-lg bg-white border-bottom">
+  <div class="container">
+    <a class="navbar-brand" href="/{{ current_language }}/index/">Site</a>
+
+    <button class="navbar-toggler" type="button"
+            data-bs-toggle="collapse" data-bs-target="#mainNavbar"
+            aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="mainNavbar">
+
+      {# ── Primary nav items ─────────────────────────────────────────────── #}
+      <ul class="navbar-nav me-auto">
+        {% for item in navbar_items %}
+          {% with has_children=item.visible_children %}
+          <li class="nav-item{% if has_children %} dropdown{% endif %}">
+
+            {% if item.cms_page %}
+              <a class="nav-link{% if has_children %} dropdown-toggle{% endif %}"
+                 href="/{{ current_language }}/{{ item.cms_page.slug }}/"
+                 {% if has_children %}data-bs-toggle="dropdown" aria-expanded="false"{% endif %}>
+                {{ item.title }}
+              </a>
+            {% elif item.external_url %}
+              <a class="nav-link{% if has_children %} dropdown-toggle{% endif %}"
+                 href="{{ item.external_url }}"
+                 target="_blank" rel="noopener noreferrer"
+                 {% if has_children %}data-bs-toggle="dropdown" aria-expanded="false"{% endif %}>
+                {{ item.title }}
+              </a>
+            {% else %}
+              <a class="nav-link{% if has_children %} dropdown-toggle{% endif %}"
+                 href="#"
+                 {% if has_children %}data-bs-toggle="dropdown" aria-expanded="false"{% endif %}>
+                {{ item.title }}
+              </a>
+            {% endif %}
+
+            {% if has_children %}
+              <ul class="dropdown-menu">
+                {% for child in item.visible_children %}
+                  {% include "basecms/includes/navbar_dropdown_item.html" with item=child lang=current_language %}
+                {% endfor %}
+              </ul>
+            {% endif %}
+
+          </li>
+          {% endwith %}
+        {% endfor %}
+      </ul>
+
+      {# ── Right-side controls ────────────────────────────────────────────── #}
+      <ul class="navbar-nav ms-auto gap-2 align-items-lg-center">
+
+        {# Language switcher #}
+        {% if available_languages %}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#"
+               data-bs-toggle="dropdown" aria-expanded="false">
+              {{ current_language|upper }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              {% for lang_code, lang_name in available_languages %}
+                <li>
+                  <a class="dropdown-item" href="/{{ lang_code }}/{{ current_slug }}/">
+                    {{ lang_name }}
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          </li>
+        {% endif %}
+
+        {# CMS cockpit link (staff only) #}
+        {% if show_cms_link %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ cms_link }}">CMS</a>
+          </li>
+        {% endif %}
+
+        {# Auth #}
+        {% if user.is_authenticated %}
+          <li class="nav-item">
+            <span class="navbar-text">{{ user.username }}</span>
+          </li>
+          <li class="nav-item">
+            <form action="{% url 'logout' %}" method="post">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-link nav-link p-0">Logout</button>
+            </form>
+          </li>
+        {% else %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'login' %}?next={{ request.path }}">Login</a>
+          </li>
+        {% endif %}
+
+      </ul>
+    </div>
+  </div>
+</nav>

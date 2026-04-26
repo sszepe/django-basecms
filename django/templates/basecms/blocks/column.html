@@ -1,0 +1,12 @@
+{% load cms_tags %}
+<div class="row g-3 mb-0">
+  {% for col in columns %}
+    <div class="col-{{ col.width }} mb-3">
+      {% for nested in col._nested %}
+        {% render_block nested %}
+      {% empty %}
+        <div class="text-muted small">Empty column</div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</div>

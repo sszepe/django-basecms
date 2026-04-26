@@ -1,0 +1,29 @@
+{% extends "basecms/base.html" %}
+{% load cms_tags %}
+{% block title %}{{ page.title }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  {% if page.show_title %}<h1 class="mb-4">{{ page.title }}</h1>{% endif %}
+
+  {# Only render top-level blocks (no parent_column). #}
+  {# Nested blocks are rendered by the column template. #}
+
+  {% if page.layout == 'grid' %}
+    {% regroup blocks|top_level_blocks|dictsort:"position" by position as position_groups %}
+    {% for group in position_groups %}
+      <div class="row mb-4">
+        {% for block in group.list|dictsort:"span_order" %}
+          {# Use block.span (1–12) for Bootstrap column width #}
+          <div class="col-{{ block.span }}">{% render_block block %}</div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  {% else %}
+    {% for block in blocks|top_level_blocks %}
+      <div class="mb-4">{% render_block block %}</div>
+    {% empty %}
+      <div class="alert alert-light border">No blocks on this page yet.</div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

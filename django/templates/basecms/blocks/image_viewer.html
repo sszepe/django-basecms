@@ -1,0 +1,35 @@
+<div class="block-card">
+  <h3 class="h6">Images</h3>
+  <div class="row g-3">
+    {% for att in attachments %}
+      {% with asset=att.media_asset %}
+        {% if asset %}
+          {# Prefer the uploaded file, fall back to source_url or external_url #}
+          {% with img_url=asset.file.url|default:asset.source_url|default:asset.external_url %}
+            {% if img_url %}
+              <div class="col-md-4">
+                <img src="{{ img_url }}"
+                     alt="{{ att.caption|default:asset.title }}"
+                     class="img-fluid rounded" />
+                {% if att.caption %}
+                  <div class="small text-muted mt-1">{{ att.caption }}</div>
+                {% endif %}
+              </div>
+            {% endif %}
+          {% endwith %}
+        {% elif att.external_url %}
+          <div class="col-md-4">
+            <img src="{{ att.external_url }}"
+                 alt="{{ att.caption|default:'' }}"
+                 class="img-fluid rounded" />
+            {% if att.caption %}
+              <div class="small text-muted mt-1">{{ att.caption }}</div>
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endwith %}
+    {% empty %}
+      <div class="col text-muted">No images attached.</div>
+    {% endfor %}
+  </div>
+</div>
